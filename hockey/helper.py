@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Pattern, Union
 
 import pytz
@@ -20,6 +20,7 @@ log = logging.getLogger("red.trusty-cogs.Hockey")
 DATE_RE = re.compile(
     r"((19|20)\d\d)[- \/.](0[1-9]|1[012]|[1-9])[- \/.](0[1-9]|[12][0-9]|3[01]|[1-9])"
 )
+DAY_REF_RE = re.compile(r"(yesterday|tomorrow|today)", re.I)
 
 YEAR_RE = re.compile(r"((19|20)\d\d)-?\/?((19|20)\d\d)?")
 # https://www.regular-expressions.info/dates.html
@@ -34,7 +35,7 @@ def get_season():
         return (now.year, now.year + 1)
 
 
-def utc_to_local(utc_dt, new_timezone="US/Eastern"):
+def utc_to_local(utc_dt, new_timezone="US/Pacific"):
     eastern = pytz.timezone(new_timezone)
     return utc_dt.replace(tzinfo=timezone.utc).astimezone(tz=eastern)
 
@@ -82,11 +83,20 @@ class TeamDateFinder(Converter):
     ) -> Dict[str, Optional[Union[datetime, List[str], str]]]:
         result: Dict[str, Optional[Union[datetime, List[str], str]]] = {"team": []}
         find = DATE_RE.search(argument)
+        day_ref = DAY_REF_RE.search(argument)
         if find:
-            log.debug(find)
             date_str = f"{find.group(1)}-{find.group(3)}-{find.group(4)}"
             result["date"] = datetime.strptime(date_str, "%Y-%m-%d")
             argument = DATE_RE.sub("", argument)
+        if day_ref:
+            today = utc_to_local(datetime.utcnow())
+            if day_ref.group(1).lower() == "yesterday":
+                result["date"] = today + timedelta(days=-1)
+            elif day_ref.group(1).lower() == "tomorrow":
+                result["date"] = today + timedelta(days=+1)
+            else:
+                result["date"] = today
+            argument = DAY_REF_RE.sub("", argument)
         potential_teams = argument.split()
         for team, data in TEAMS.items():
             if "Team" in team:
@@ -277,8 +287,18 @@ async def check_valid_team(team_name: str, standings: bool = False) -> str:
     useful for game day channel creation should impliment elsewhere
     """
     is_team = []
-    conference = ["eastern", "western", "conference"]
-    division = ["metropolitan", "atlantic", "pacific", "central", "division"]
+    conference = []  # ["eastern", "western", "conference"]
+    division = [
+            "central",
+            "discover",
+            "division",
+            "scotia",
+            "north",
+            "massmutual",
+            "east",
+            "honda",
+            "west"
+        ]
     if team_name.lower() == "all":
         return ["all"]
     if team_name in conference and standings:

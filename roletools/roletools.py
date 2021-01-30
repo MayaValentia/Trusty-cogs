@@ -26,7 +26,7 @@ class RoleTools(RoleEvents, commands.Cog):
     """
 
     __author__ = ["TrustyJAID"]
-    __version__ = "1.1.0"
+    __version__ = "1.1.2"
 
     def __init__(self, bot):
         self.bot = bot
@@ -102,7 +102,7 @@ class RoleTools(RoleEvents, commands.Cog):
         Set whether or not a user can apply the role to themselves.
 
         `[set_to]` optional boolean of what to set the setting to.
-        If not provided the current settingwill be shown instead.
+        If not provided the current setting will be shown instead.
         `<role>` The role you want to set.
         """
         cur_setting = await self.config.role(role).selfassignable()
@@ -132,7 +132,7 @@ class RoleTools(RoleEvents, commands.Cog):
         Set whether or not a user can remove the role from themselves.
 
         `[set_to]` optional boolean of what to set the setting to.
-        If not provided the current settingwill be shown instead.
+        If not provided the current setting will be shown instead.
         `<role>` The role you want to set.
         """
         cur_setting = await self.config.role(role).selfremovable()
@@ -199,7 +199,7 @@ class RoleTools(RoleEvents, commands.Cog):
         Set whether or not a role will be re-applied when a user leaves and rejoins the server.
 
         `[set_to]` optional boolean of what to set the setting to.
-        If not provided the current settingwill be shown instead.
+        If not provided the current setting will be shown instead.
         `<role>` The role you want to set.
         """
         cur_setting = await self.config.role(role).sticky()
@@ -229,7 +229,7 @@ class RoleTools(RoleEvents, commands.Cog):
         Set a role to be automatically applied when a user joins the server.
 
         `[set_to]` optional boolean of what to set the setting to.
-        If not provided the current settingwill be shown instead.
+        If not provided the current setting will be shown instead.
         `<role>` The role you want to set.
         """
         cur_setting = await self.config.role(role).auto()
@@ -359,11 +359,11 @@ class RoleTools(RoleEvents, commands.Cog):
             if isinstance(emoji, discord.Emoji):
                 use_emoji = str(emoji.id)
             else:
-                use_emoji = str(emoji).strip(r"\N{VARIATION SELECTOR-16}")
+                use_emoji = str(emoji).strip("\N{VARIATION SELECTOR-16}")
             key = f"{message.channel.id}-{message.id}-{use_emoji}"
             send_to_react = False
             try:
-                await message.add_reaction(str(emoji).strip(r"\N{VARIATION SELECTOR-16}"))
+                await message.add_reaction(str(emoji).strip("\N{VARIATION SELECTOR-16}"))
             except discord.HTTPException:
                 send_to_react = True
             if ctx.guild.id not in self.settings:
@@ -445,7 +445,7 @@ class RoleTools(RoleEvents, commands.Cog):
                     found = True
                     break
             else:
-                if str(role_or_emoji.strip(r"\N{VARIATION SELECTOR-16}")) in key:
+                if str(role_or_emoji.strip("\N{VARIATION SELECTOR-16}")) in key:
                     found = True
                     break
         if found:
@@ -499,12 +499,12 @@ class RoleTools(RoleEvents, commands.Cog):
                 if isinstance(emoji, discord.PartialEmoji):
                     use_emoji = str(emoji.id)
                 else:
-                    use_emoji = str(emoji).strip(r"\N{VARIATION SELECTOR-16}")
+                    use_emoji = str(emoji).strip("\N{VARIATION SELECTOR-16}")
                 key = f"{message.channel.id}-{message.id}-{use_emoji}"
                 if key not in cur_setting:
                     try:
                         await message.add_reaction(
-                            str(emoji).strip().strip(r"\N{VARIATION SELECTOR-16}")
+                            str(emoji).strip().strip("\N{VARIATION SELECTOR-16}")
                         )
                     except discord.HTTPException:
                         send_to_react = True
@@ -538,7 +538,8 @@ class RoleTools(RoleEvents, commands.Cog):
                 msg += _("{role} - {emoji} on {message}\n").format(
                     role=role.name, emoji=emoji, message=message.jump_url
                 )
-            await ctx.send(msg)
+            for page in pagify(msg):
+                await ctx.send(page)
             if send_to_react:
                 await ctx.send(
                     _(

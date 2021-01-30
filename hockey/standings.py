@@ -81,9 +81,21 @@ class Standings:
         async with aiohttp.ClientSession() as session:
             async with session.get(BASE_URL + "/api/v1/standings") as resp:
                 data = await resp.json()
-        conference = ["eastern", "western", "conference"]
-        division = ["metropolitan", "atlantic", "pacific", "central", "division"]
+        conference = []  # ["eastern", "western", "conference"]
+        # The NHL removed conferences from the standings
+        division = [
+            "central",
+            "discover",
+            "division",
+            "scotia",
+            "north",
+            "massmutual",
+            "east",
+            "honda",
+            "west"
+        ]
         if style.lower() in conference:
+            # Leaving this incase it comes back
             e = [
                 await Standings.from_json(
                     team, record["division"]["name"], record["conference"]["name"]
@@ -112,20 +124,20 @@ class Standings:
                 new_list.append(
                     [
                         await Standings.from_json(
-                            team, record["division"]["name"], record["conference"]["name"]
+                            team, record["division"]["name"], None  # record["conference"]["name"]
                         )
                         for team in record["teamRecords"]
                     ]
                 )
             index = 0
             for div in new_list:
-                if div[0].division.lower() == style and style != "division":
+                if style in div[0].division.lower() and style != "division":
                     index = new_list.index(div)
             return new_list, index
         else:
             all_teams = [
                 await Standings.from_json(
-                    team, record["division"]["name"], record["conference"]["name"]
+                    team, record["division"]["name"], None  # record["conference"]["name"]
                 )
                 for record in data["records"]
                 for team in record["teamRecords"]

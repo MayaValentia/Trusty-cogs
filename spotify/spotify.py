@@ -60,7 +60,7 @@ class Spotify(commands.Cog):
     """
 
     __author__ = ["TrustyJAID", "NeuroAssassin"]
-    __version__ = "1.5.2"
+    __version__ = "1.5.3"
 
     def __init__(self, bot):
         self.bot = bot
@@ -985,7 +985,7 @@ class Spotify(commands.Cog):
                 cur = await user_spotify.playback()
                 if not cur:
                     await ctx.send(_("It appears you're not currently listening to Spotify."))
-                if cur.is_playing and not cur.item.is_local:
+                elif cur.is_playing and not cur.item.is_local:
                     msg = copy(ctx.message)
                     msg.content = ctx.prefix + f"play {cur.item.uri}"
                     self.bot.dispatch("message", msg)

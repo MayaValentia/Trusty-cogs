@@ -32,7 +32,7 @@ from .menu import (
     PlayerPages,
 )
 from .pickems import Pickems
-from .schedule import Schedule
+from .schedule import Schedule, ScheduleList
 from .standings import Standings
 from .teamentry import TeamEntry
 
@@ -47,7 +47,7 @@ class Hockey(HockeyDev, commands.Cog):
     Gather information and post goal updates for NHL hockey teams
     """
 
-    __version__ = "2.13.1"
+    __version__ = "2.14.5"
     __author__ = ["TrustyJAID"]
 
     def __init__(self, bot):
@@ -153,6 +153,7 @@ class Hockey(HockeyDev, commands.Cog):
                     game["link"]: {"count": 0, "game": None}
                     for game in data["dates"][0]["games"]
                     if game["status"]["abstractGameState"] != "Final"
+                    and game["status"]["detailedState"] != "Postponed"
                 }
             else:
                 games = []
@@ -204,7 +205,7 @@ class Hockey(HockeyDev, commands.Cog):
                         )
                     )
 
-                    if game.game_state == "Final":
+                    if game.game_state in ["Final", "Postponed"]:
                         try:
                             await Pickems.set_guild_pickem_winner(self.bot, game)
                         except Exception:
@@ -1233,7 +1234,7 @@ class Hockey(HockeyDev, commands.Cog):
             log.error("error adding team role", exc_info=True)
             await ctx.send(team + _(" is not an available role!"))
 
-    @hockey_commands.command(name="goals")
+    @hockey_commands.command(name="goalsrole")
     async def team_goals(self, ctx, *, team: HockeyTeams = None):
         """Subscribe to goal notifications"""
         guild = ctx.message.guild
@@ -1254,6 +1255,7 @@ class Hockey(HockeyDev, commands.Cog):
                 await ctx.message.channel.send(f"{role_list} role applied.")
                 return
             else:
+                await ctx.send(_("Please provide the team you want the goal notification role for."))
                 return
         else:
             try:
@@ -1283,6 +1285,15 @@ class Hockey(HockeyDev, commands.Cog):
             "western": ConferenceStandingsPages,
             "eastern": ConferenceStandingsPages,
             "division": DivisionStandingsPages,
+            "massmutual": DivisionStandingsPages,
+            "central": DivisionStandingsPages,
+            "discover": DivisionStandingsPages,
+            "scotia": DivisionStandingsPages,
+            "north": DivisionStandingsPages,
+            "massmutual": DivisionStandingsPages,
+            "east": DivisionStandingsPages,
+            "honda": DivisionStandingsPages,
+            "west": DivisionStandingsPages,
         }
         if search is None:
             search = "division"
@@ -1310,6 +1321,21 @@ class Hockey(HockeyDev, commands.Cog):
         log.debug(teams_and_date)
         await GamesMenu(
             source=Schedule(**teams_and_date),
+            delete_message_after=False,
+            clear_reactions_after=True,
+            timeout=60,
+        ).start(ctx=ctx)
+
+    @hockey_commands.command()
+    async def schedule(self, ctx, *, teams_and_date: Optional[TeamDateFinder] = {}):
+        """
+        Gets all upcoming NHL games for the current season as a list
+
+        If team is provided it will grab that teams schedule
+        """
+        log.debug(teams_and_date)
+        await GamesMenu(
+            source=ScheduleList(**teams_and_date),
             delete_message_after=False,
             clear_reactions_after=True,
             timeout=60,

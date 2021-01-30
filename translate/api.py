@@ -12,7 +12,6 @@ from discord.ext.commands.errors import BadArgument
 from redbot.core import Config, VersionInfo, commands, version_info
 from redbot.core.bot import Red
 from redbot.core.i18n import Translator
-from redbot.core.utils.common_filters import filter_mass_mentions
 
 from .errors import GoogleTranslateAPIError
 from .flags import FLAGS
@@ -160,7 +159,7 @@ class GoogleTranslateAPI:
                 can_run = True
             if member.id in whitelist:
                 can_run = True
-            for role in member.roles:
+            for role in getattr(member, "roles", []):
                 if role.is_default():
                     continue
                 if role.id in whitelist:
@@ -173,9 +172,7 @@ class GoogleTranslateAPI:
                 can_run = False
             if member.id in blacklist:
                 can_run = False
-            if isinstance(member, discord.User):
-                return True
-            for role in member.roles:
+            for role in getattr(member, "roles", []):
                 if role.is_default():
                     continue
                 if role.id in blacklist:
@@ -331,7 +328,7 @@ class GoogleTranslateAPI:
         except (discord.errors.NotFound, discord.Forbidden):
             return
 
-        if not await self.check_ignored_channel(message):
+        if not await self.check_ignored_channel(message, reacted_user):
             return
         await self.translate_message(message, str(payload.emoji), reacted_user)
 
@@ -353,11 +350,15 @@ class GoogleTranslateAPI:
                     _("You're translating too many messages!"), delete_after=delete_after
                 )
                 return
+        to_translate = None
         if message.embeds != []:
             if message.embeds[0].description:
                 to_translate = cast(str, message.embeds[0].description)
         else:
             to_translate = message.clean_content
+
+        if not to_translate:
+            return
         num_emojis = 0
         for reaction in message.reactions:
             if reaction.emoji == str(flag):
@@ -377,9 +378,7 @@ class GoogleTranslateAPI:
         if target == original_lang:
             return
         try:
-            translated_text = filter_mass_mentions(
-                await self.translate_text(original_lang, target, to_translate)
-            )
+            translated_text = await self.translate_text(original_lang, target, to_translate)
             await self.add_requests(guild, to_translate)
         except Exception:
             log.exception("Error translating message")
@@ -454,18 +453,24 @@ class GoogleTranslateAPI:
 
             return author.id not in await self.bot.db.blacklist()
 
-    async def check_ignored_channel(self, message: discord.Message) -> bool:
+    async def check_ignored_channel(
+        self, message: discord.Message, reacting_user: Optional[discord.Member] = None
+    ) -> bool:
         """
         https://github.com/Cog-Creators/Red-DiscordBot/blob/V3/release/3.0.0/redbot/cogs/mod/mod.py#L1273
         """
         if version_info >= VersionInfo.from_str("3.3.6"):
             ctx = await self.bot.get_context(message)
+            if reacting_user:
+                ctx.author = reacting_user
             return await self.bot.ignored_channel_or_guild(ctx)
         # everything below this can be removed at a later date when support
         # for previous versions are no longer required.
         channel = cast(discord.TextChannel, message.channel)
         guild = channel.guild
         author = cast(discord.Member, message.author)
+        if reacting_user:
+            author = reacting_user
         mod = self.bot.get_cog("Mod")
         if mod is None:
             return True

@@ -18,6 +18,7 @@ from .game import Game
 from .helper import DATE_RE
 from .standings import Standings
 from .player import Player
+from .schedule import ScheduleList
 
 _ = Translator("Hockey", __file__)
 log = logging.getLogger("red.trusty-cogs.hockey")
@@ -128,6 +129,11 @@ class GamesMenu(menus.MenuPages, inherit_buttons=False):
             return True
         return max_pages == 1
 
+    def _skip_double_arrows(self):
+        if isinstance(self._source, ScheduleList):
+            return True
+        return False
+
     @menus.button(
         "\N{BLACK LEFT-POINTING TRIANGLE}\N{VARIATION SELECTOR-16}",
         position=menus.First(1),
@@ -148,6 +154,7 @@ class GamesMenu(menus.MenuPages, inherit_buttons=False):
     @menus.button(
         "\N{BLACK LEFT-POINTING DOUBLE TRIANGLE WITH VERTICAL BAR}\N{VARIATION SELECTOR-16}",
         position=menus.First(0),
+        skip_if=_skip_double_arrows
     )
     async def go_to_first_page(self, payload):
         """go to the first page"""
@@ -156,6 +163,7 @@ class GamesMenu(menus.MenuPages, inherit_buttons=False):
     @menus.button(
         "\N{BLACK RIGHT-POINTING DOUBLE TRIANGLE WITH VERTICAL BAR}\N{VARIATION SELECTOR-16}",
         position=menus.Last(1),
+        skip_if=_skip_double_arrows
     )
     async def go_to_last_page(self, payload):
         """go to the last page"""
