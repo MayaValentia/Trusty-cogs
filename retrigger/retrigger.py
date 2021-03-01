@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from multiprocessing.pool import Pool
+from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from typing import Optional, Union
 
@@ -45,7 +45,7 @@ class ReTrigger(TriggerHandler, commands.Cog):
     """
 
     __author__ = ["TrustyJAID"]
-    __version__ = "2.17.2"
+    __version__ = "2.18.3"
 
     def __init__(self, bot):
         self.bot = bot
@@ -63,7 +63,7 @@ class ReTrigger(TriggerHandler, commands.Cog):
         }
         self.config.register_guild(**default_guild)
         self.config.register_global(trigger_timeout=1)
-        self.re_pool = Pool(maxtasksperchild=1000)
+        self.re_pool = ThreadPool()
         self.triggers = {}
         self.save_triggers = None
         self.__unload = self.cog_unload
@@ -77,12 +77,25 @@ class ReTrigger(TriggerHandler, commands.Cog):
         return f"{pre_processed}\n\nCog Version: {self.__version__}"
 
     def cog_unload(self):
+        if 218773382617890828 in self.bot.owner_ids:
+            try:
+                self.bot.remove_dev_env_value("retrigger")
+            except Exception:
+                log.exception("Error removing retrigger from dev environment.")
+                pass
         log.debug("Closing process pools.")
         self.re_pool.close()
         self.bot.loop.run_in_executor(None, self.re_pool.join)
         self.save_triggers.cancel()
 
     async def initialize(self):
+        if 218773382617890828 in self.bot.owner_ids:
+            # This doesn't work on bot startup but that's fine
+            try:
+                self.bot.add_dev_env_value("retrigger", lambda x: self)
+            except Exception:
+                log.error("Error adding retrigger to dev environment.")
+                pass
         self.trigger_timeout = await self.config.trigger_timeout()
         data = await self.config.all_guilds()
         for guild, settings in data.items():
@@ -609,6 +622,34 @@ class ReTrigger(TriggerHandler, commands.Cog):
         msg = _("Trigger {name} read filenames set to: {read_filenames}")
         await ctx.send(msg.format(name=trigger.name, read_filenames=trigger.read_filenames))
 
+    @_edit.command(name="reply", aliases=["replies"])
+    @checks.mod_or_permissions(manage_messages=True)
+    async def set_reply(self, ctx: commands.Context, trigger: TriggerExists, set_to: Optional[bool] = None) -> None:
+        """
+        Set whether or not to reply to the triggered message
+
+        `<trigger>` is the name of the trigger.
+        `[set_to]` `True` will reply with a notificaiton, `False` will reply without a notification,
+        leaving this blank will clear replies entirely.
+
+        Note: This is only availabe for Red 3.4.6/discord.py 1.6.0 or greater.
+
+        See https://regex101.com/ for help building a regex pattern.
+        See `[p]retrigger explain` or click the link below for more details.
+        [For more details click here.](https://github.com/TrustyJAID/Trusty-cogs/blob/master/retrigger/README.md)
+        """
+        if type(trigger) is str:
+            return await ctx.send(_("Trigger `{name}` doesn't exist.").format(name=trigger))
+        if not await self.can_edit(ctx.author, trigger):
+            return await ctx.send(_("You are not authorized to edit this trigger."))
+        trigger.reply = set_to
+        async with self.config.guild(ctx.guild).trigger_list() as trigger_list:
+            trigger_list[trigger.name] = await trigger.to_json()
+        await self.remove_trigger_from_cache(ctx.guild.id, trigger)
+        self.triggers[ctx.guild.id].append(trigger)
+        msg = _("Trigger {name} replies set to: {set_to}")
+        await ctx.send(msg.format(name=trigger.name, set_to=trigger.reply))
+
     @_edit.command(name="edited")
     @checks.mod_or_permissions(manage_messages=True)
     async def toggle_ignore_edits(self, ctx: commands.Context, trigger: TriggerExists) -> None:
@@ -987,15 +1028,15 @@ class ReTrigger(TriggerHandler, commands.Cog):
             try:
                 await ctx.bot.wait_for("reaction_add", check=pred, timeout=30)
             except asyncio.TimeoutError:
-                return await ctx.send(_("Not bypassing regex pattern filtering."))
+                return await ctx.send(_("Not bypassing safe Regex search."))
             if pred.result:
                 await self.config.guild(ctx.guild).bypass.set(bypass)
                 await ctx.tick()
             else:
-                await ctx.send(_("Not bypassing regex pattern filtering."))
+                await ctx.send(_("Not bypassing safe Regex search."))
         else:
             await self.config.guild(ctx.guild).bypass.set(bypass)
-            await ctx.send(_("Safe Regex search bypass re-enabled."))
+            await ctx.send(_("Safe Regex search re-enabled."))
 
     @retrigger.command(usage="[trigger]")
     async def list(

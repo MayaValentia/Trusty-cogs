@@ -135,6 +135,12 @@ class EventMixin:
             return True
         return False
 
+    async def is_ignored_role_changes(self, guild: discord.Guild, role: discord.Role):
+        ignored_role_changes = self.settings[guild.id]["ignored_role_changes"]
+        if role.id in ignored_role_changes:
+            return True
+        return False
+
     async def member_can_run(self, ctx: commands.Context) -> bool:
         """Check if a user can run a command.
         This will take the current context into account, such as the
@@ -1906,15 +1912,29 @@ class EventMixin:
                     added_roles = list(a - b)
                     removed_str = ""
                     added_str = ""
+                    ignored_roles_removed = []
+                    ignored_roles_added = []
                     
                     for role in removed_roles:
-                        removed_str = removed_str + _("{rolemention} ").format(
-                            rolemention=role.mention
-                        )
+                        if (role.id not in self.settings[guild.id]["ignored_role_changes"]):
+                            removed_str = removed_str + _("{rolemention} ").format(
+                                rolemention=role.mention
+                            )
+                        else:
+                            ignored_roles_removed.append(role)
                     for role in added_roles:
-                        added_str = added_str + _("{rolemention} ").format(
-                            rolemention=role.mention
-                        )
+                        if (role.id not in self.settings[guild.id]["ignored_role_changes"]):
+                            added_str = added_str + _("{rolemention} ").format(
+                                rolemention=role.mention
+                            )
+                        else:
+                            ignored_roles_added.append(role)
+
+                    for role in ignored_roles_added:
+                        added_roles.remove(role)
+                    
+                    for role in ignored_roles_removed:
+                        removed_roles.remove(role)
 
                     if ((len(removed_roles) > 0) and (len(added_roles) == 0)):
                         msg += _("{author} had the {role} roles removed.").format(

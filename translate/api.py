@@ -150,7 +150,7 @@ class GoogleTranslateAPI:
         if guild.id not in self.cache["guild_whitelist"]:
             self.cache["guild_whitelist"][guild.id] = await self.config.guild(guild).whitelist()
         whitelist = self.cache["guild_whitelist"][guild.id]
-        blacklist = self.cache["guild_whitelist"][guild.id]
+        blacklist = self.cache["guild_blacklist"][guild.id]
         if whitelist:
             can_run = False
             if channel.id in whitelist:
@@ -381,7 +381,7 @@ class GoogleTranslateAPI:
             translated_text = await self.translate_text(original_lang, target, to_translate)
             await self.add_requests(guild, to_translate)
         except Exception:
-            log.exception("Error translating message")
+            log.exception(f"Error translating message {guild=} {channel=}")
             return
         if not translated_text:
             return
