@@ -150,5 +150,6 @@ inv_settings = {
         "embed": True,
     },
     "ignored_channels": [],
+    "ignored_role_changes": [],
     "invite_links": {},
 }

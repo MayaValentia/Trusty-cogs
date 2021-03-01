@@ -116,6 +116,15 @@ class ExtendedModLog(EventMixin, commands.Cog):
                 data["ignored_channels"].remove(c)
             else:
                 ignored_channels.append(chn)
+
+        ign_role_changes = data["ignored_role_changes"]
+        ignored_role_changes = []
+        for r in ign_role_changes:
+            role = guild.get_role(r)
+            if role is None:
+                data["ignored_role_changes"].remove(r)
+            else:
+                ignored_role_changes.append(role)
         enabled = ""
         disabled = ""
         for settings, name in cur_settings.items():
@@ -137,6 +146,9 @@ class ExtendedModLog(EventMixin, commands.Cog):
         if ignored_channels:
             chans = ", ".join(c.mention for c in ignored_channels)
             msg += _("Ignored Channels") + ": " + chans
+        if ignored_role_changes:
+            role_changes = ", ".join(r.mention for r in ignored_role_changes)
+            msg += _("Ignored Role Changes") + ": " + role_changes
         await self.config.guild(ctx.guild).set(data)
         # save the data back to config incase we had some deleted channels
         await ctx.maybe_send_embed(msg)
@@ -685,6 +697,63 @@ class ExtendedModLog(EventMixin, commands.Cog):
             await ctx.send(_(" Now tracking events in ") + channel.mention)
         else:
             await ctx.send(channel.mention + _(" is not being ignored."))
+
+    @_modlog.command()
+    async def ignorerolechange(
+        self,
+        ctx: commands.Context,
+        role: discord.Role,
+    ) -> None:
+        """
+        Ignore a role from addition and removal events
+
+        `role` the role to ignore change events for
+        """
+        if ctx.guild.id not in self.settings:
+            self.settings[ctx.guild.id] = inv_settings
+        guild = ctx.message.guild
+        
+        # if channel is None:
+        #     channel = ctx.channel
+        if role is None:
+            await ctx.send_help()
+            return
+        cur_ignored = await self.config.guild(guild).ignored_role_changes()
+        if role.id not in cur_ignored:
+            cur_ignored.append(role.id)
+            await self.config.guild(guild).ignored_role_changes.set(cur_ignored)
+            self.settings[guild.id]["ignored_role_changes"] = cur_ignored
+            await ctx.send(_(" Now ignoring change events for ") + role.mention)
+        else:
+            await ctx.send(role.mention + _(" is already being ignored."))
+
+    @_modlog.command()
+    async def unignorerolechange(
+        self,
+        ctx: commands.Context,
+        role: discord.Role,
+    ) -> None:
+        """
+        Ungnore a role from addition and removal events
+
+        `role` the role to unignore change events for
+        """
+        if ctx.guild.id not in self.settings:
+            self.settings[ctx.guild.id] = inv_settings
+        guild = ctx.message.guild
+        # if channel is None:
+        #     channel = ctx.channel
+        if role is None:
+            await ctx.send_help()
+            return
+        cur_ignored = await self.config.guild(guild).ignored_role_changes()
+        if role.id in cur_ignored:
+            cur_ignored.remove(role.id)
+            await self.config.guild(guild).ignored_role_changes.set(cur_ignored)
+            self.settings[guild.id]["ignored_role_changes"] = cur_ignored
+            await ctx.send(_(" Now tracking change events for ") + role.mention)
+        else:
+            await ctx.send(role.mention + _(" is not being ignored."))
 
     def __unload(self):
         self.loop.cancel()
